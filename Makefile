@@ -1,26 +1,24 @@
-CC		:= clang
-C_FLAGS := -Wall -Wextra -g
+CC      = clang
+EMCC    = emcc
+TARGET  = -target x86_64-w64-mingw32-gcc
+DEBUG   = -Wall -Wextra -g
+STD     = -std=c11
+INCLUDE = -Isrc -Iinclude
+MAIN    = src/main.c
+LIB     = -Llib
+LIBS    = 
+OUT     = bin/main.exe
 
-BIN		:= bin
-SRC		:= src
-INCLUDE	:= 
-LIB		:= 
+#STD MATH
+LIBS    += -lm
 
-LIBRARIES	:= -lm
+#SDL2
+LIBS    += -lmingw32 -lSDL2main -lSDL2 
+#SDL2 IMAGE
+LIBS    += -lSDL2_image
 
-ifeq ($(OS),Windows_NT)
-EXECUTABLE	:= main
-else
-EXECUTABLE	:= main
-endif
+all:
+	$(CC) $(TARGET) $(DEBUG) $(STD) $(INCLUDE) $(MAIN) $(LIB) $(LIBS) -o $(OUT)
+	bin/main.exe
 
-all: $(BIN)/$(EXECUTABLE)
-	./$(BIN)/$(EXECUTABLE)
-clean:
-	-$(RM) $(BIN)/$(EXECUTABLE)
-
-run: all
-	./$(BIN)/$(EXECUTABLE)
-
-$(BIN)/$(EXECUTABLE): $(SRC)/*.c
-	$(CC) $(C_FLAGS) $(INCLUDE) $(LIB) $^ -o $@ $(LIBRARIES)
+	
