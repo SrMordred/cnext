@@ -25,10 +25,13 @@ comma_statement -> identifier ( "=" expression )? ( "," comma_statement )?
 
 */
 
+Array( ArrayStatement, Statement* );
+
 struct 
 {
     Token*          current;
-    Array           ast;
+    // ArrayExpression ast;
+    Expression*     ast;
     char*           file_name;
 } Parser;
 
@@ -53,6 +56,11 @@ Token* parser_next()
 Token* parser_previous()
 {
     return parser_current()-1;    
+}
+
+TK parser_current_tk()
+{
+    return Parser.current->type;
 }
 
 
@@ -126,9 +134,9 @@ void parser_error( char* msg )
 
     char* start   = (char*)current->text.ptr;
     char* end     = start;
-    while(*start != 0 && *start != '\n' && *start != '\r')--start;
+    while(*start != 0 && *start != '\r' && *start != '\r')--start;
     ++start;
-    while(*end != 0 && *end != '\n'  && *end != '\r' )++end;
+    while(*end != 0 && *end != '\r'  && *end != '\r' )++end;
 
     int line_len  = (int)(end - start);
     int start_len = (int)((char*)current->text.ptr - start);
@@ -156,156 +164,392 @@ Token* parser_consume(TK type, char* msg)
 }  
 
 Expression* parser_expression();
+Expression* parser_cast_expression();
 
-Expression* parser_primary() 
-{        
-
-    if (parser_match(TK_FALSE))
-    {
-        return NodeBool(false);
-    } 
-    if (parser_match(TK_TRUE))
-    {
-        return NodeBool(true);
-    }
-    if (parser_match(TK_NULL))
-    {
-        //TODO: NULL
-        return NodeBool(false);
-    }
-
-    if (parser_match(TK_STRING))
-    {                           
-        const Token* previous = parser_previous();
-        return NodeString( previous->text );
-    }
-
-    if (parser_match(TK_NUMBER))
-    {
-        return NodeInt( parser_previous()->_int ) ;
-    }                                                      
-
-    if (parser_match(TK_OPEN_PAREN)) 
-    {                               
-        Expression* expression = parser_expression();                            
-        parser_consume(TK_CLOSE_PAREN, "Expect ')' after expression.");
-        return NodeGrouping( expression );
-    }     
-
-    if( parser_match(TK_IDENTIFIER) ) 
-    {
-        // const Token* previous = parser_previous();
-        return NodeIdentifier( parser_previous()->text );
-    }
-    parser_error( "Expected expression.");
-    exit(EXIT_FAILURE);
-    return NULL;
-}
-
-Expression* parser_unary() 
-{                     
-    if (parser_match_n(2,(TK[]){TK_NOT, TK_MINUS}))
-    {                
-        TK          operator = parser_previous()->type;
-        Expression* right    = parser_unary();
-        return      NodeUnary(right, operator);
-    }
-
-    return parser_primary();                        
-} 
-
-Expression* parser_multiplication() 
-{                   
-    Expression* left = parser_unary();                            
-
-    while (parser_match_n(2, (TK[]){TK_SLASH, TK_STAR}))
-    {                    
-        TK operator       = parser_previous()->type;
-        Expression* right = parser_unary();
-        left              = NodeBinary( left, right, operator );
-    }                                               
-
-    return left;                                    
-  } 
-
-Expression* parser_addition() 
-{                         
-    Expression* left = parser_multiplication();
-
-    while (parser_match_n(2, (TK[]){ TK_MINUS, TK_PLUS }))
-    {                    
-        TK operator       = parser_previous()->type;
-        Expression* right = parser_multiplication();
-        left              = NodeBinary( left, right, operator );
-    }                                               
-
-    return left;                                    
-  }
-
-Expression* parser_comparison() 
-{                                
-    Expression* left = parser_addition();
-
-    while (parser_match_n(4, (TK[]){ TK_GREATER, TK_GREATER_EQUAL, TK_LESS, TK_LESS_EQUAL }))
-    {
-        TK operator       = parser_previous()->type;
-        Expression* right = parser_addition();
-        left              = NodeBinary( left, right, operator );
-    }                                                        
-
-    return left;                                             
-}  
-
-Expression* parser_equality()
-{                         
-    Expression* left = parser_comparison();
-
-    while (parser_match_n(2,  (TK[]){TK_NOT_EQUAL, TK_EQUAL_EQUAL}))
-    {        
-        TK operator       = parser_previous()->type;
-        Expression* right = parser_comparison();
-        left              = NodeBinary( left, right, operator );
-    }                                               
-
-    return left;                                    
-}
-
-Expression* parser_expression() 
+/*
+//LOTS OF TODOS HERE
+primaryExpression
+    :   Identifier
+    |   Constant
+    |   StringLiteral+
+    |   '(' expression ')'
+    |   genericSelection
+    |   '__extension__'? '(' compoundStatement ')' // Blocks (GCC extension)
+    |   '__builtin_va_arg' '(' unaryExpression ',' typeName ')'
+    |   '__builtin_offsetof' '(' typeName ',' unaryExpression ')'
+    ;
+*/
+Expression* parser_primary_expression()  
 {
-    return parser_equality();       
+    TK op = parser_current_tk();
+    if( op == TK_IDENTIFIER )
+    {
+        parser_next();
+        return node_identifier( parser_previous()->text );
+    }
+    if( op == TK_STRING )
+    {
+        parser_next();
+        return node_string( parser_previous()->text );
+    }
+    if( op == TK_NUMBER )
+    {
+        parser_next();
+        return node_int( parser_previous()->_int );
+    }
+    if( op == TK_OPEN_PAREN )
+    {
+        parser_next();
+        Expression* expr = parser_expression();
+        parser_consume(TK_CLOSE_PAREN, "Close Parens Expected!");
+        return expr;
+    }
+    parser_error("Primary Expression Expected!");
+    return node_error();
+}
+/*
+postfixExpression
+    :   primaryExpression
+    |   postfixExpression '[' expression ']' //TODO:
+    |   postfixExpression '(' argumentExpressionList? ')' //TODO:
+    |   postfixExpression '.' Identifier //TODO:
+    |   postfixExpression '->' Identifier //TODO:
+    |   postfixExpression '++'
+    |   postfixExpression '--'
+    |   '(' typeName ')' '{' initializerList '}' //TODO:
+    |   '(' typeName ')' '{' initializerList ',' '}' //TODO:
+    |   '__extension__' '(' typeName ')' '{' initializerList '}' //TODO:
+    |   '__extension__' '(' typeName ')' '{' initializerList ',' '}' //TODO:
+    ;
+
+*/
+Expression* parser_postfix_expression()  
+{
+    Expression* expr = parser_primary_expression();
+    TK op            = parser_current_tk();
+    if( op == TK_PLUS_PLUS || op == TK_MINUS_MINUS)
+    {
+        parser_next();
+        return node_unary( expr, op, EXPR_UNARY_POST );
+    }
+    return expr;
 }
 
-// statement       -> var_declaration ;
-// var_declaration -> type comma_statement ";";
-// comma_statement -> identifier ( "=" expression )? ( "," comma_statement )?
+/*
+unaryExpression
+    :   postfixExpression
+    |   '++' unaryExpression
+    |   '--' unaryExpression
+    |   unaryOperator castExpression
+    |   'sizeof' unaryExpression //TODO:
+    |   'sizeof' '(' typeName ')' //TODO:
+    |   '_Alignof' '(' typeName ')' //TODO:
+    |   '&&' Identifier // GCC extension address of label //TODO:
+    ;
+*/
 
-// Statement* parser_comma_statement( StringView type )
-// {       
-//     StringView identifier  = parser_consume( TK_IDENTIFIER, "Expect variable name." )->text;
+Expression* parser_unary_expression()  
+{
+    TK op = parser_current_tk();
 
-//     if( parser_match( TK_EQUAL ) )
-//     {
-//         Expression* expression = parser_expression();
-//     }
+    if( op == TK_PLUS_PLUS || op == TK_MINUS_MINUS )
+    {
+        parser_next();
+        Expression* expr = parser_unary_expression();
+        return node_unary( expr, op, EXPR_UNARY_PRE );
+    }
+    else if( 
+        op == TK_AND ||
+        op == TK_STAR ||
+        op == TK_PLUS ||
+        op == TK_MINUS ||
+        op == TK_BITNOT ||
+        op == TK_NOT 
+    )
+    {
+        parser_next();
+        Expression* right = parser_cast_expression();
+        return node_unary( right, op, EXPR_UNARY_PRE );
+    }
 
-//     if( parser_match( TK_COMMA ) )
-//     {
-//         parser_comma_statement( type );
-//     }
+    return parser_postfix_expression();
+}
 
-//     type    = parser_current()->text;
-//     // return parser_
-//     parser_consume( TK_SEMICOLON, "Expect ';' after variable declaration." );
-//     return parser_var_declaration( type );
-// }
+/*
+castExpression
+    :   '(' typeName ')' castExpression //TODO:
+    |   '__extension__' '(' typeName ')' castExpression //TODO:
+    |   unaryExpression
+    |   DigitSequence // for //TODO:
+    ;
 
-// Statement* parser_var_declaration()
-// {       
-//     StringView type       = parser_previous()->text;
-//     Statement* stmt = parser_comma_statement( type );
-//     parser_consume( TK_SEMICOLON, "Expect ';' after variable declaration." );
-//     return stmt;
-// }
+*/
+Expression* parser_cast_expression()  
+{
+    // TK op = parser_current_tk();
+
+    // if( op == TK_OPEN_PAREN )
+    // {
+    //     parser_next();
+    //     Token* type = parser_consume(TK_IDENTIFIER, "Type Identifier Expected!");
+    //     parser_consume(TK_CLOSE_PAREN, "Closing Parens expected!");
+    // }
+
+    return parser_unary_expression();
+}
+
+/*
+multiplicativeExpression
+    :   castExpression
+    |   multiplicativeExpression '*' castExpression
+    |   multiplicativeExpression '/' castExpression
+    |   multiplicativeExpression '%' castExpression
+    ;
+*/
+
+Expression* parser_multiplicative_expression()  
+{
+    Expression* left = parser_cast_expression();
+    TK op = parser_current_tk();
+    if( op == TK_STAR || op == TK_SLASH || op == TK_MOD )
+    {
+        parser_next();
+        return node_binary( left, op, parser_multiplicative_expression() );
+    }
+    return left;
+}
+
+/*
+additiveExpression
+    :   multiplicativeExpression
+    |   additiveExpression '+' multiplicativeExpression
+    |   additiveExpression '-' multiplicativeExpression
+    ;
+*/
+Expression* parser_additive_expression()  
+{
+    Expression* left = parser_multiplicative_expression();
+    TK op = parser_current_tk();
+    if( op == TK_PLUS || op == TK_MINUS )
+    {
+        parser_next();
+        return node_binary( left, op, parser_additive_expression() );
+    }
+    return left;
+}
+
+/*
+shiftExpression
+    :   additiveExpression
+    |   shiftExpression '<<' additiveExpression
+    |   shiftExpression '>>' additiveExpression
+    ;
+*/
+Expression* parser_shift_expression()  
+{
+    Expression* left = parser_additive_expression();
+    TK op = parser_current_tk();
+    if( op == TK_LSHIFT || op == TK_RSHIFT )
+    {
+        parser_next();
+        return node_binary( left, op, parser_shift_expression() );
+    }
+    return left;
+}
+
+
+/*
+relationalExpression
+    :   shiftExpression
+    |   relationalExpression '<' shiftExpression
+    |   relationalExpression '>' shiftExpression
+    |   relationalExpression '<=' shiftExpression
+    |   relationalExpression '>=' shiftExpression
+    ;
+*/
+Expression* parser_relational_expression()  
+{
+    Expression* left = parser_shift_expression();
+    TK op = parser_current_tk();
+    if( op >= TK_LESS && op <= TK_GREATER_EQUAL )
+    {
+        parser_next();
+        return node_binary( left, op, parser_relational_expression() );
+    }
+    return left;
+}
+
+/*
+equalityExpression
+    :   relationalExpression
+    |   equalityExpression '==' relationalExpression
+    |   equalityExpression '!=' relationalExpression
+    ;
+*/
+
+Expression* parser_equality_expression()  
+{
+    Expression* left = parser_relational_expression();
+    TK op = parser_current_tk();
+    if( op == TK_EQUAL_EQUAL || op == TK_NOT_EQUAL )
+    {
+        parser_next();
+        return node_binary( left, op, parser_equality_expression() );
+    }
+    return left;
+}
+
+/*
+andExpression
+    :   equalityExpression
+    |   andExpression '&' equalityExpression
+    ;
+*/
+
+Expression* parser_and_expression()  
+{
+    Expression* left = parser_equality_expression();
+    TK op = parser_current_tk();
+    if( op == TK_BITAND )
+    {
+        parser_next();
+        return node_binary( left, op, parser_and_expression() );
+    }
+    return left;
+}
+
+/*
+exclusiveOrExpression
+    :   andExpression
+    |   exclusiveOrExpression '^' andExpression
+    ;
+*/
+
+Expression* parser_exclusive_or_expression()  
+{
+    Expression* left = parser_and_expression();
+    TK op = parser_current_tk();
+    if( op == TK_XOR )
+    {
+        parser_next();
+        return node_binary( left, op, parser_exclusive_or_expression() );
+    }
+    return left;
+}
+
+/*
+inclusiveOrExpression
+    :   exclusiveOrExpression
+    |   inclusiveOrExpression '|' exclusiveOrExpression
+    ;
+*/
+
+Expression* parser_inclusive_or_expression()  
+{
+    Expression* left = parser_exclusive_or_expression();
+    TK op = parser_current_tk();
+    if( op == TK_BITOR )
+    {
+        parser_next();
+        return node_binary( left, op, parser_inclusive_or_expression() );
+    }
+    return left;
+}
+
+/*
+logicalAndExpression
+    :   inclusiveOrExpression
+    |   logicalAndExpression '&&' inclusiveOrExpression
+    ;
+*/
+Expression* parser_logical_and_expression()  
+{
+    Expression* left = parser_inclusive_or_expression();
+    TK op = parser_current_tk();
+    if( op == TK_AND )
+    {
+        parser_next();
+        return node_binary( left, op, parser_logical_and_expression() );
+    }
+    return left;
+}
+
+/*
+logicalOrExpression
+    :   logicalAndExpression
+    |   logicalOrExpression '||' logicalAndExpression
+    ;
+*/
+
+Expression* parser_logical_or_expression()  
+{
+    Expression* left = parser_logical_and_expression();
+    TK op = parser_current_tk();
+    if( op == TK_OR )
+    {
+        parser_next();
+        return node_binary( left, op, parser_logical_or_expression() );
+    }
+    return left;
+}
+
+/*
+conditionalExpression
+    :   logicalOrExpression ('?' expression ':' conditionalExpression)?
+    ;
+*/
+
+Expression* parser_conditional_expression()  
+{
+    Expression* left = parser_logical_or_expression();
+    //TODO: TERNARY
+    //ALSO IS A EXPR NOT STATEMENT!
+    // if( parser_current_tk() == TK_QUESTION )
+    // {
+
+    // }
+
+    return left;
+}
+
+/*
+assignmentExpression
+    :   conditionalExpression
+    |   unaryExpression assignmentOperator assignmentExpression
+    |   DigitSequence // for //TODO: dont know if necessary
+    ;
+*/
+Expression* parser_assignment_expression()  
+{
+    Expression* left = parser_conditional_expression();
+    TK op            = parser_current_tk();
+
+    if( op >= TK_EQUAL && op <= TK_OR_EQUAL )
+    {
+        parser_next();
+        return node_binary( left, op , parser_assignment_expression() );
+    }
+
+    return left;
+}
+/*
+expression
+    :   assignmentExpression
+    |   expression ',' assignmentExpression
+    ;
+*/
+Expression* parser_expression()  
+{
+    Expression* left = parser_assignment_expression();
+    TK op            = parser_current_tk();
+
+    if( op == TK_COMMA )
+    {
+        parser_next();
+        return node_binary( left, op , parser_expression() );
+    }
+    return left;
+}
 
 Statement* parser_statement() 
 {         
@@ -319,21 +563,23 @@ Statement* parser_statement()
     return NULL;
 } 
 
-void parser_load_tokens(char* file_name, Array tokens )
+void parser_load_tokens(char* file_name, ArrayToken tokens )
 {
     node_memory_init( MB(4) );
 
-    Parser.current   = (Token*)(tokens.ptr) + 1;//pass TK_START
-    Parser.ast       = array( sizeof( Statement* ) );
+    Parser.current   = (Token*)( tokens.ptr) + 1;//pass TK_START
+    // Parser.ast       = ( ArrayExpression ){};
     Parser.file_name = file_name;
 
-    while( !parser_is_eof() )
-    {
-        Statement* stmt = parser_statement();
-        if(stmt == NULL) continue; //TODO: mabybe is possible to remove this if
-        //this is related to the parser_resync
-        array_push( &Parser.ast, &stmt );
-    }
+    Parser.ast = parser_expression();
+
+    // while( !parser_is_eof() )
+    // {
+    //     Statement* stmt = parser_statement();
+    //     if(stmt == NULL) continue; //TODO: mabybe is possible to remove this if
+    //     //this is related to the parser_resync
+    //     array_push( Parser.ast, stmt );
+    // }
     
 }
 
@@ -352,13 +598,13 @@ void parser_expr_visit( Expression* expr );
 void parser_print_ast()
 {
     memset(tree_str, ' ', 1024);
-    foreach(Statement*, stmt, Parser.ast,{
-        // printf("%.*s %.*s \n", (int)stmt->var_declaration.type.len, (char*)&stmt->var_declaration.type, (int)stmt->var_declaration.name.len, (char*)&stmt->var_declaration.name );
-        parser_stmt_visit(stmt);
-    });
+    // foreach(Statement*, stmt, Parser.ast,{
+    //     // printf("%.*s %.*s \n", (int)stmt->var_declaration.type.len, (char*)&stmt->var_declaration.type, (int)stmt->var_declaration.name.len, (char*)&stmt->var_declaration.name );
+    //     parser_stmt_visit(stmt);
+    // });
 
-    // Expression* expr = Parser.ast;
-    // parser_ast_visit((Expr_t*)expr);
+    Expression* expr = Parser.ast;
+    parser_expr_visit(expr);
 }
 
 void parser_stmt_visit( Statement* stmt )
@@ -426,9 +672,18 @@ void parser_expr_visit( Expression* expression )
             }
         break;
 
-        case EXPR_UNARY:
-            printf("Unary: \n");
+        case EXPR_UNARY_PRE:
+            print("Unary Prefix: ", (char*)TK_STR[expression->unary.operator]);
+            parser_expr_visit(expression->unary.expr);
+        break;
 
+        case EXPR_UNARY_POST:
+            print("Unary Postfix: ", (char*)TK_STR[expression->unary.operator] );
+            parser_expr_visit(expression->unary.expr);
+        break;
+
+        case EXPR_ERROR:
+            print("Error Node: \n");
         break;
 
         case EXPR_BINARY:
@@ -451,6 +706,24 @@ void parser_expr_visit( Expression* expression )
                 break;
                 case TK_STAR:
                     printf("Mul:\n");
+                    parser_expr_visit(expression->binary.left);
+                    parser_expr_visit(expression->binary.right);
+                break;
+
+                case TK_COMMA:
+                    printf("Comma :\n");
+                    parser_expr_visit(expression->binary.left);
+                    parser_expr_visit(expression->binary.right);
+                break;
+
+                case TK_MOD:
+                    printf("'%':\n");
+                    parser_expr_visit(expression->binary.left);
+                    parser_expr_visit(expression->binary.right);
+                break;
+
+                case TK_EQUAL_EQUAL:
+                    printf("'==':\n");
                     parser_expr_visit(expression->binary.left);
                     parser_expr_visit(expression->binary.right);
                 break;

@@ -15,9 +15,11 @@ Enum(EXPR,
 	EXPR_GROUPING,
     EXPR_VALUE,
     EXPR_IDENTIFIER,
-    EXPR_UNARY,
+    EXPR_UNARY_PRE,
+    EXPR_UNARY_POST,
     EXPR_BINARY,
     EXPR_EXPR,
+    EXPR_ERROR
 });
 
 Enum( STMT ,
@@ -50,8 +52,10 @@ class( Value, {
 	};
 });
 
+class(Error,{});
+
 class( Unary, {
-	Expression* right;
+	Expression* expr;
 	TK operator;
 });
 
@@ -71,6 +75,7 @@ class(Expression, {
 		Value      value;
 		Unary      unary;
 		Binary     binary;
+		Error      error;
 	};
 
 });
@@ -100,9 +105,9 @@ class(Node, {
 	};
 });
 
-class(Program, {
-	Array statements;
-});
+// class(Program, {
+// 	ArrayDecl(statements;
+// });
 
 //MEMORY AND ALLOCATION
 
@@ -125,7 +130,16 @@ void* node_alloc( const size_t size )
 	return memory_arena_alloc( &node_memory, size );
 }
 
-Expression* NodeBool( bool value ) 
+Expression* node_error() 
+{
+	Expression* expression  = node_alloc( sizeof *expression );
+	expression->type        = EXPR_ERROR;
+	return expression;
+
+}
+
+
+Expression* node_bool( bool value ) 
 {
 	Expression* expression  = node_alloc( sizeof *expression );
 	expression->type        = EXPR_VALUE;
@@ -134,7 +148,7 @@ Expression* NodeBool( bool value )
 	return expression;
 }
 
-Expression* NodeInt( int value ) 
+Expression* node_int( int value ) 
 {
 	Expression* expression  = node_alloc( sizeof *expression );
 	expression->type        = EXPR_VALUE;
@@ -143,7 +157,7 @@ Expression* NodeInt( int value )
 	return expression;
 }
 
-Expression* NodeString( StringView value ) 
+Expression* node_string( StringView value ) 
 {
 	Expression* expression    = node_alloc( sizeof *expression );
 	expression->type          = EXPR_VALUE;
@@ -152,7 +166,7 @@ Expression* NodeString( StringView value )
 	return expression;
 }
 
-Expression* NodeIdentifier( StringView identifier ) 
+Expression* node_identifier( StringView identifier ) 
 {
 	Expression* expression = node_alloc( sizeof *expression );
 	expression->type       = EXPR_IDENTIFIER;
@@ -160,7 +174,7 @@ Expression* NodeIdentifier( StringView identifier )
 	return expression;
 }
 
-Expression* NodeGrouping( Expression* expression_group ) 
+Expression* node_grouping( Expression* expression_group ) 
 {
 	Expression* expression          = node_alloc( sizeof *expression );
 	expression->type                = EXPR_GROUPING;
@@ -168,26 +182,26 @@ Expression* NodeGrouping( Expression* expression_group )
 	return expression;
 }
 
-Expression* NodeUnary( Expression* right, TK operator  ) 
+Expression* node_unary( Expression* expr, TK operator, EXPR pre_or_post ) 
 {
 	Expression* expression     = node_alloc( sizeof *expression );
-	expression->type           = EXPR_UNARY;
+	expression->type           = pre_or_post;
 	expression->unary.operator = operator;
-	expression->unary.right    = right;
+	expression->unary.expr     = expr;
 	return expression;
 }
 
-Expression* NodeBinary( Expression* left, Expression* right, TK operator ) 
+Expression* node_binary( Expression* left, TK operator , Expression* right ) 
 {
 	Expression* expression      = node_alloc( sizeof *expression );
-	expression->type            = EXPR_UNARY;
+	expression->type            = EXPR_BINARY;
 	expression->binary.left     = left;
 	expression->binary.right    = right;
 	expression->binary.operator = operator;
 	return expression;
 }
 
-Statement* NodeVarDeclaration( StringView type, StringView identifier, Expression* init) 
+Statement* node_varDeclaration( StringView type, StringView identifier, Expression* init) 
 {
 	Statement* statement                  = node_alloc( sizeof *statement );
 	statement->type                       = STMT_VAR_DECLARATION;

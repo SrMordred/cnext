@@ -12,6 +12,9 @@
 #include "std/util.h"
 #include "compiler/token.h"
 
+#define EOL '\r'
+
+Array(ArrayToken, Token);
 
 struct 
 {
@@ -21,26 +24,26 @@ struct
 
 	StringView file;
 	char*      file_name;
-	Array      token_array;
+	ArrayToken array_token;
 
 } Lexer;
 
 void lexer_add_token( TK type )
 {
 	Token t = { type, string_view_from( Lexer.start , Lexer.current - Lexer.start ) , Lexer.line, {} };
-	array_push(&Lexer.token_array, &t );
+	array_push(Lexer.array_token, t );
 }
 
 void lexer_add_token_string( TK type )
 {
 	Token t = { type, string_view_from(Lexer.start + 1, Lexer.current - Lexer.start - 2 ) , Lexer.line, {} };
-	array_push(&Lexer.token_array, &t );
+	array_push(Lexer.array_token, t );
 }
 
 void lexer_add_token_int( TK type, int value )
 {
-	Token t = { type, string_view_from( Lexer.start, Lexer.current - Lexer.start -1 ) , Lexer.line, { ._int = value } };
-	array_push(&Lexer.token_array, &t );
+	Token t = { type, string_view_from( Lexer.start, Lexer.current - Lexer.start  ) , Lexer.line, { ._int = value } };
+	array_push(Lexer.array_token, t );
 }
 
 void lexer_error(char* msg)
@@ -54,9 +57,9 @@ void lexer_error(char* msg)
 
 	char* start   = Lexer.current-1;
 	char* end     = start;
-	while(*start != 0 && *start != '\n' && *start != '\r')--start;
+	while(*start != 0 && *start != EOL && *start != EOL)--start;
 	++start;
-	while(*end != 0 && *end != '\n'  && *end != '\r' )++end;
+	while(*end != 0 && *end != EOL  && *end != EOL )++end;
 
 	int len = (int)(end - start);
 
@@ -87,24 +90,31 @@ bool lexer_is_eof()
 
 bool lexer_match(char expected)
 {
-	if( lexer_is_eof() ) return false;
 	if( *Lexer.current != expected ) return false;
 	++Lexer.current;
 	return true;
 }
 
+bool lexer_match2(char expected1, char expected2)
+{
+	if(( *Lexer.current != expected1 ) && ( *(Lexer.current + 1) != expected2 )) return false;
+	Lexer.current+=2;
+	return true;
+}
+
 void lexer_string_scan()
-{                                   
-    while (*Lexer.current != '"' && !lexer_is_eof()) 
+{     
+	//TODO:  multiple strings ex: "single" "string"
+
+    while (*Lexer.current != '"' && *Lexer.current != EOL) 
 	{                   
-		if (*Lexer.current == '\n') Lexer.line++;                           
 		lexer_next();                                            
     }
-    if (lexer_is_eof())
-	{                                        
+    if (*Lexer.current == EOL)
+	{
 		lexer_error("Unterminated string.");
 		return;                                               
-    }                                                       
+	}
 	lexer_next();
     lexer_add_token_string(TK_STRING);                                
 }   
@@ -118,7 +128,6 @@ void lexer_number_scan() {
      	lexer_next();                                              
       	while (isdigit(*Lexer.current) ) lexer_next();                      
     }                                                         
-
     lexer_add_token_int(TK_NUMBER, strtol(Lexer.start, &Lexer.current , 10 ));
 }
 
@@ -154,23 +163,43 @@ void lexer_scan()
 		case ',': lexer_add_token( TK_COMMA ) ; break;
 		case '.': lexer_add_token( TK_DOT ) ; break;
 
-		case '+': lexer_add_token( TK_PLUS ) ; break;
+		case '+':
+			if( lexer_match('+') )
+		 		lexer_add_token( TK_PLUS_PLUS );
+		 	else
+				lexer_add_token( lexer_match('=') ? TK_PLUS_EQUAL : TK_PLUS ) ; 
+		break;
+
 		case '-': 
 			if( lexer_match('>') )
-			{
 				lexer_add_token( TK_ARROW );
-			}
+			else if( lexer_match('-') )
+				lexer_add_token( TK_MINUS_MINUS );
 			else
-				lexer_add_token( TK_MINUS ) ; 
+				lexer_add_token( lexer_match('=') ? TK_MINUS_EQUAL : TK_MINUS ) ; 
 		break;
-		case '*': lexer_add_token( TK_STAR ) ; break;
 
+		case '*': lexer_add_token( lexer_match('=') ? TK_STAR_EQUAL : TK_STAR ) ; break;
+		case '^': lexer_add_token( lexer_match('=') ? TK_XOR_EQUAL : TK_XOR ) ; break;
+		case '|': 
+			if( lexer_match('|') )
+				lexer_add_token( TK_OR );
+			else
+				lexer_add_token( lexer_match('=') ? TK_OR_EQUAL : TK_BITOR ) ; 
+			break;
+
+		case '&':
+			if( lexer_match('&') )
+				lexer_add_token( TK_AND );
+			else
+				lexer_add_token( lexer_match('=') ? TK_AND_EQUAL : TK_BITAND ) ;
+			break;
 
 		case '/':   
 			//SINGLE LINE COMMENT
         	if (lexer_match('/'))//comment line
 			{        
-          		while (*Lexer.current != '\n' && !lexer_is_eof())
+          		while (*Lexer.current != EOL && !lexer_is_eof())
 				{ 
 					lexer_next();             
 				} 
@@ -178,7 +207,8 @@ void lexer_scan()
         	//BLOCK COMMENT
         	else if( lexer_match('*') )
         	{
-          		while ( (*Lexer.current != '*' && *(Lexer.current + 1) != '/') && !lexer_is_eof())
+
+          		while ( !(*Lexer.current == '*' && *(Lexer.current + 1) == '/') && !lexer_is_eof())
           		{
           			lexer_next();
           		}
@@ -188,30 +218,44 @@ void lexer_scan()
           			lexer_error("Unexpected end of comment");
           		}
           		lexer_next();
-          		lexer_next();
+          		lexer_next(); // ?
         	}
 			else                                                      
-          		lexer_add_token( TK_SLASH );                                            
+          		lexer_add_token( lexer_match('=') ? TK_SLASH_EQUAL : TK_SLASH );                                            
         break;  
+
+        case '%': lexer_add_token( lexer_match('=') ? TK_MOD_EQUAL : TK_MOD ); break;                                           
 
 		case '=': lexer_add_token( lexer_match('=') ? TK_EQUAL_EQUAL : TK_EQUAL ) ; break;
 		case '!': lexer_add_token( lexer_match('=') ? TK_NOT_EQUAL : TK_NOT ) ; break;
-		case '>': lexer_add_token( lexer_match('=') ? TK_GREATER_EQUAL : TK_GREATER ) ; break;
-		case '<': lexer_add_token( lexer_match('=') ? TK_LESS_EQUAL : TK_LESS ) ; break;
+		case '~': lexer_add_token( TK_BITNOT ) ; break;
+		case '>': 
+			if( lexer_match('>') )
+				lexer_add_token( lexer_match('=') ? TK_RSHIFT_EQUAL : TK_RSHIFT );
+			else
+				lexer_add_token( lexer_match('=') ? TK_GREATER_EQUAL : TK_GREATER ) ; 
+			break;
+		case '<': 
+			if( lexer_match('<') )
+				lexer_add_token( lexer_match('=') ? TK_LSHIFT_EQUAL : TK_LSHIFT );
+			else
+				lexer_add_token( lexer_match('=') ? TK_LESS_EQUAL : TK_LESS ) ; 
+			break;
 
 		case '"': lexer_string_scan(); break;
 
 		case ';': lexer_add_token( TK_SEMICOLON ); break;
+		case ':': lexer_add_token( TK_COLON ); break;
 
 
 		//space ignoring
 		case ' ':                                    
-      	case '\r':                                   
+		case '\n':                                    
       	case '\t':                                   
         break;
 
 		//new line
-		case '\n': Lexer.line++; break; 
+		case EOL: Lexer.line++; break; 
 
 		case '0':
 		case '1':
@@ -244,6 +288,8 @@ void lexer_scan()
 
 StringView lexer_file_to_string(char* file_name)
 {
+	//TODO: ADD SOME EXTRA CHARACTERS AT THE END SO YOU DONT NEED TO CHECK FOR EOF
+	//WHILE LEXING A TOKEN
 	FILE* file = fopen( file_name , "rb");
 	if(!file) 
 	{
@@ -255,15 +301,15 @@ StringView lexer_file_to_string(char* file_name)
 	long file_size = ftell(file);
 	fseek(file, 0, SEEK_SET);
 	
-	String file_string = string_new_cap( file_size + 2 );
+	String file_string = string( file_size + 2 );
 	fread(file_string.ptr + 1 , 1, file_size, file);
 
 	StringView view = string_view_from( file_string.ptr, file_size );
 	//file starting and ending with \n, 
 	// useful on parser later, to limit start and endof lines
 	char* ptr          = view.ptr;
-	ptr[0]             = '\n';
-	ptr[file_size + 1] = '\n';
+	ptr[0]             = EOL;
+	ptr[file_size + 1] = EOL;
 	ptr[file_size + 2] = 0;
 
 	fclose(file);
@@ -273,8 +319,7 @@ StringView lexer_file_to_string(char* file_name)
 
 void lexer_load_file(char* file_name)
 {
-
-	Lexer.token_array 	= array( sizeof( Token ) );
+	Lexer.array_token   = ( ArrayToken ){};
     Lexer.file 			= lexer_file_to_string( file_name );
 
 
@@ -283,7 +328,7 @@ void lexer_load_file(char* file_name)
 	Lexer.line    		= 1;
 
 	Token t = { TK_START, { Lexer.current, 0 } , Lexer.line, {} };
-	array_push(&Lexer.token_array, &t );
+	array_push(Lexer.array_token, t );
 	// lexer_add_token( TK_START );
 
 	error_catch( 0, END );
@@ -297,7 +342,7 @@ void lexer_load_file(char* file_name)
 	END:
 
 	t = (Token){ TK_EOF, {0} , Lexer.line, {} };
-	array_push(&Lexer.token_array, &t );
+	array_push(Lexer.array_token, t );
 }
 
 void lexer_print_token(Token* tk)
@@ -307,12 +352,12 @@ void lexer_print_token(Token* tk)
 
 void lexer_print_tokens()
 {
-    foreach( Token, tk, Lexer.token_array, {
+    foreach( Token, tk, Lexer.array_token, {
 		printf("%s %.*s line: %d \n", TK_STR[ tk.type ], (int)tk.text.len, tk.text.ptr, tk.line);
 	});
 }
 
-Array lexer_get_tokens()
+ArrayToken lexer_get_tokens()
 {
-	return Lexer.token_array;
+	return Lexer.array_token;
 }

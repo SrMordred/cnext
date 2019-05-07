@@ -56,11 +56,27 @@
 // }	
 
 
+typedef void (*f_ptr)();
+
 
 int main(int argc, char *argv[]) 
 {
 	(void) argv;
 	(void) argc;
+
+
+
+	// cast(void(*)() , a.ptr )();
+
+	// print( ptr_cap(a) );
+
+	// b->ptr = "";
+
+	// char* a = str_from("teste");
+
+	// print(a);
+	
+
 
 
 

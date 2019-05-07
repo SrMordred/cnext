@@ -1,5 +1,4 @@
 CC      = clang
-EMCC    = emcc
 TARGET  = -target x86_64-w64-mingw32-gcc
 DEBUG   = -Wall -Wextra -g
 STD     = -std=c11

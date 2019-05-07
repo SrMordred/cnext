@@ -5,29 +5,33 @@
 #include "std/util.h"
 #include "std/alloc.h"
 
-typedef Slice String;
+class( String, {
+	char* ptr;
+	size_t len;
+	size_t cap;
+});
 
-String string( void* string )
+String string_from( void* string )
 {
 	char* str = (char*) string;
 	const size_t len = strlen( str );
-
-	String this = alloc_slice( len, 1 );
-	this.len    = len;
-	copy(this.ptr, str, len);
-	cast(char*, this.ptr)[len] = 0;
+	String this;
+	this.ptr = alloc( len + 1 );
+	this.len = len;
+	memcpy(this.ptr, str, len);
+	this.ptr[len] = 0;
 	return this;
 }
 
-String string_new_cap( const size_t cap )
+String string( const size_t cap )
 {
 	String this;
 
-	this.ptr = malloc( cap + 1);
+	this.ptr = alloc( cap + 1);
 	this.len = 0;
 	this.cap = cap;
 
-	cast(char*, this.ptr)[0] = 0;
+	this.ptr[0] = 0;
 	return this;
 }
 
@@ -41,20 +45,18 @@ void string_push( String* this, const void* value )
 
 	if( new_cap > old_cap )
 	{
-		char* tmp = malloc( new_cap + 1 );
-		copy( tmp, this->ptr, old_len );
-		copy( tmp + old_len, str , val_len );
+		char* tmp = alloc( new_cap + 1 );
+		memcpy( tmp, this->ptr, old_len );
+		memcpy( tmp + old_len, str , val_len + 1 );
 		this->len        = new_cap;
 		this->cap        = new_cap;
-		cast(char*, this->ptr)[new_cap] = 0;
 
 		free(this->ptr);
 		this->ptr = tmp;
 		return;
 	}
-	copy(this->ptr + old_len, str , val_len);
+	memcpy(this->ptr + old_len, str , val_len + 1);
 	this->len = new_cap;
-	cast(char*, this->ptr)[new_cap] = 0;
 }
 
 void string_print( void* this )

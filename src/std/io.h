@@ -18,7 +18,7 @@ String file_to_string( char* file_name )
 	long file_size = ftell(file);
 	fseek(file, 0, SEEK_SET);  /* same as rewind(f); */
 
-	String file_string = string_new_cap( file_size );
+	String file_string = string( file_size );
 	fread(file_string.ptr, 1, file_size, file);
 	fclose(file);
 

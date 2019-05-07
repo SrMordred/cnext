@@ -2,80 +2,215 @@
 
 #include "std/util.h"
 
-#define ENUMS \
-	__ENUM( TK_START ) \
-	__ENUM( TK_OPEN_PAREN ) \
-	__ENUM( TK_CLOSE_PAREN ) \
-	__ENUM( TK_OPEN_BRACE ) \
-	__ENUM( TK_CLOSE_BRACE ) \
-	__ENUM( TK_OPEN_BRACKET ) \
-	__ENUM( TK_CLOSE_BRACKET ) \
-	__ENUM( TK_COMMA ) \
-	__ENUM( TK_DOT ) \
-	__ENUM( TK_MINUS ) \
-	__ENUM( TK_PLUS ) \
-	__ENUM( TK_SEMICOLON ) \
-	__ENUM( TK_SLASH ) \
-	__ENUM( TK_STAR ) \
-	__ENUM( TK_NOT ) \
-	__ENUM( TK_NOT_EQUAL ) \
-	__ENUM( TK_EQUAL ) \
-	__ENUM( TK_EQUAL_EQUAL ) \
-	__ENUM( TK_GREATER ) \
-	__ENUM( TK_GREATER_EQUAL ) \
-	__ENUM( TK_LESS ) \
-	__ENUM( TK_LESS_EQUAL ) \
-	__ENUM( TK_IDENTIFIER ) \
-	__ENUM( TK_STRING ) \
-	__ENUM( TK_NUMBER ) \
-	__ENUM( TK_FALSE ) \
-	__ENUM( TK_TRUE ) \
-	__ENUM( TK_NULL ) \
-	__ENUM( TK_ARROW ) \
-	/* C KEYWORDS */ \
-	__ENUM( TK_AUTO ) \
-	__ENUM( TK_BREAK ) \
-	__ENUM( TK_CASE ) \
-	__ENUM( TK_CONST ) \
-	__ENUM( TK_CONTINUE ) \
-	__ENUM( TK_DEFAULT ) \
-	__ENUM( TK_DO ) \
-	__ENUM( TK_ELSE ) \
-	__ENUM( TK_ENUM ) \
-	__ENUM( TK_EXTERN ) \
-	__ENUM( TK_FOR ) \
-	__ENUM( TK_GOTO ) \
-	__ENUM( TK_IF ) \
-	__ENUM( TK_REGISTER ) \
-	__ENUM( TK_RETURN ) \
-	__ENUM( TK_SIGNED ) \
-	__ENUM( TK_SIZEOF ) \
-	__ENUM( TK_STATIC ) \
-	__ENUM( TK_STRUCT ) \
-	__ENUM( TK_SWITCH ) \
-	__ENUM( TK_TYPEDEF ) \
-	__ENUM( TK_UNION ) \
-	__ENUM( TK_UNSIGNED ) \
-	__ENUM( TK_VOLATILE ) \
-	__ENUM( TK_WHILE ) \
-	/* C DATA TYPES */ \
-	__ENUM( TK_CHAR ) \
-	__ENUM( TK_DOUBLE ) \
-	__ENUM( TK_FLOAT ) \
-	__ENUM( TK_INT ) \
-	__ENUM( TK_LONG ) \
-	__ENUM( TK_SHORT ) \
-	__ENUM( TK_VOID ) \
-	\
-	__ENUM( TK_EOF ) \
 
-#define __ENUM(x) x,
-typedef enum { ENUMS TOP } TK ;
-#undef __ENUM
 
-#define __ENUM(x) #x,    
-const char * const TK_STR[] = { ENUMS };
-#undef __ENUM
+typedef enum {
+    TK_START , 
+    TK_OPEN_PAREN , 
+    TK_CLOSE_PAREN , 
+    TK_OPEN_BRACE , 
+    TK_CLOSE_BRACE , 
+    TK_OPEN_BRACKET , 
+    TK_CLOSE_BRACKET , 
+    TK_COMMA , 
+    TK_DOT , 
+    
+    TK_SEMICOLON , 
+    TK_COLON , 
+
+    TK_LESS , 
+    TK_GREATER , 
+    TK_LESS_EQUAL , 
+    TK_GREATER_EQUAL , 
+   
+    TK_NOT , 
+    TK_BITNOT ,  //~
+    TK_NOT_EQUAL , 
+    TK_EQUAL_EQUAL , 
+    TK_IDENTIFIER , 
+    TK_STRING , 
+    TK_NUMBER , 
+    TK_FALSE , 
+    TK_TRUE , 
+    TK_NULL , 
+    TK_ARROW , 
+    TK_AUTO , 
+    TK_BREAK , 
+    TK_CASE , 
+    TK_CONST , 
+    TK_CONTINUE , 
+    TK_DEFAULT , 
+    TK_DO , 
+    TK_ELSE , 
+    TK_ENUM , 
+    TK_EXTERN , 
+    TK_FOR , 
+    TK_GOTO , 
+    TK_IF , 
+    TK_REGISTER , 
+    TK_RETURN , 
+    TK_SIGNED , 
+    TK_SIZEOF , 
+    TK_STATIC , 
+    TK_STRUCT , 
+    TK_SWITCH , 
+    TK_TYPEDEF , 
+    TK_UNION , 
+    TK_UNSIGNED , 
+    TK_VOLATILE , 
+    TK_WHILE , 
+    TK_CHAR , 
+    TK_DOUBLE , 
+    TK_FLOAT , 
+    TK_INT , 
+    TK_LONG , 
+    TK_SHORT , 
+    TK_VOID , 
+
+    TK_QUESTION , 
+
+    TK_RSHIFT,
+    TK_LSHIFT,
+
+    TK_PLUS_PLUS,
+    TK_MINUS_MINUS,
+    /*
+    BINARY OPERATORS
+    '-' | '+' | '/' | '*' | '%' | '&' | '|' | '^' | '||' | '&&'
+    */
+    TK_MINUS , 
+    TK_PLUS , 
+    TK_SLASH , 
+    TK_STAR , 
+    TK_MOD,
+    TK_BITAND,
+    TK_BITOR,
+    TK_XOR,
+    TK_OR,
+    TK_AND,
+
+    /*
+    ASSIGN OPERATORS
+    '=' | '*=' | '/=' | '%=' | '+=' | '-=' | '<<=' | '>>=' | '&=' | '^=' | '|='\
+    */
+    TK_EQUAL , 
+    TK_STAR_EQUAL , 
+    TK_SLASH_EQUAL , 
+    TK_MOD_EQUAL , 
+    TK_PLUS_EQUAL , 
+    TK_MINUS_EQUAL , 
+    TK_LSHIFT_EQUAL , 
+    TK_RSHIFT_EQUAL , 
+    TK_AND_EQUAL , 
+    TK_XOR_EQUAL , 
+    TK_OR_EQUAL , 
+
+    TK_EOF 
+} TK ;
+
+const char * const TK_STR[] = {
+    "TK_START" , 
+    "TK_OPEN_PAREN" , 
+    "TK_CLOSE_PAREN" , 
+    "TK_OPEN_BRACE" , 
+    "TK_CLOSE_BRACE" , 
+    "TK_OPEN_BRACKET" , 
+    "TK_CLOSE_BRACKET" , 
+    "TK_COMMA" , 
+    "TK_DOT" , 
+    
+    "TK_SEMICOLON" , 
+    "TK_COLON" , 
+   
+    "TK_LESS" , 
+    "TK_GREATER" , 
+    "TK_LESS_EQUAL" , 
+    "TK_GREATER_EQUAL" , 
+
+    "TK_NOT" , 
+    "TK_BITNOT" ,
+    "TK_NOT_EQUAL" , 
+    "TK_EQUAL_EQUAL" , 
+    "TK_IDENTIFIER" , 
+    "TK_STRING" , 
+    "TK_NUMBER" , 
+    "TK_FALSE" , 
+    "TK_TRUE" , 
+    "TK_NULL" , 
+    "TK_ARROW" , 
+    "TK_AUTO" , 
+    "TK_BREAK" , 
+    "TK_CASE" , 
+    "TK_CONST" , 
+    "TK_CONTINUE" , 
+    "TK_DEFAULT" , 
+    "TK_DO" , 
+    "TK_ELSE" , 
+    "TK_ENUM" , 
+    "TK_EXTERN" , 
+    "TK_FOR" , 
+    "TK_GOTO" , 
+    "TK_IF" , 
+    "TK_REGISTER" , 
+    "TK_RETURN" , 
+    "TK_SIGNED" , 
+    "TK_SIZEOF" , 
+    "TK_STATIC" , 
+    "TK_STRUCT" , 
+    "TK_SWITCH" , 
+    "TK_TYPEDEF" , 
+    "TK_UNION" , 
+    "TK_UNSIGNED" , 
+    "TK_VOLATILE" , 
+    "TK_WHILE" , 
+    "TK_CHAR" , 
+    "TK_DOUBLE" , 
+    "TK_FLOAT" , 
+    "TK_INT" , 
+    "TK_LONG" , 
+    "TK_SHORT" , 
+    "TK_VOID" , 
+
+    "TK_QUESTION" , 
+
+    "TK_RSHIFT",
+    "TK_LSHIFT",
+
+    "TK_PLUS_PLUS",
+    "TK_MINUS_MINUS",
+    /*
+    BINARY OPERATORS
+    '-' | '+' | '/' | '*' | '%' | '&' | '|' | '^' | '||' | '&&'
+    */
+    "TK_MINUS" , 
+    "TK_PLUS" , 
+    "TK_SLASH" , 
+    "TK_STAR" , 
+    "TK_MOD",
+    "TK_BITAND",
+    "TK_BITOR",
+    "TK_XOR",
+    "TK_OR",
+    "TK_AND",
+
+    /*
+    ASSIGN OPERATORS
+    '=' | '*=' | '/=' | '%=' | '+=' | '-=' | '<<=' | '>>=' | '&=' | '^=' | '|='\
+    */
+    "TK_EQUAL" , 
+    "TK_STAR_EQUAL" , 
+    "TK_SLASH_EQUAL" , 
+    "TK_MOD_EQUAL" , 
+    "TK_PLUS_EQUAL" , 
+    "TK_MINUS_EQUAL" , 
+    "TK_LSHIFT_EQUAL" , 
+    "TK_RSHIFT_EQUAL" , 
+    "TK_AND_EQUAL" , 
+    "TK_XOR_EQUAL" , 
+    "TK_OR_EQUAL" , 
+
+    "TK_EOF" 
+};
 
 unsigned long dbj2(unsigned char *str ,int len)
 {

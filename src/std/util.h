@@ -15,18 +15,21 @@
 
 #define __print_generic(x) _Generic((x),        /* Get the name of a type */             \
                                                                                   \
-        _Bool: "%d",                  unsigned char: "%c",          \
+        bool: "%d",                  unsigned char: "%c",          \
          char: "%c",                     signed char: "%c",            \
-    short int: "%d",         unsigned short int: "%d",     \
-          int: "%d",                     unsigned int: "%d",           \
+    short int: "%d",         unsigned short int: "%u",     \
+          int: "%d",                     unsigned int: "%u",           \
      long int: "%ld",           unsigned long int: "%lu",      \
-long long int: "%d", unsigned long long int: "%d", \
+long long int: "%lld",          unsigned long long int: "%llu", \
         float: "%f",                         double: "%f",                 \
   long double: "%f",                   char *: "%s",        \
        void *: "%p",                int *: "%p",         \
 default: "%p") \
 
-
+/*
+ex:
+foreach(int , a, int_array, { print(a); })
+*/
 #define foreach(TYPE, VAR, RANGE, BODY ) \
 { \
 	TYPE*         __ptr   = (TYPE*) RANGE.ptr; \
@@ -36,6 +39,17 @@ default: "%p") \
 	BODY \
 	}	 \
 }\
+
+#define loop(ARRAY, BODY ) \
+{ \
+	const __typeof( ARRAY.ptr ) __ptr = ARRAY.ptr; \
+	const size_t  __limit       = ARRAY.len; \
+	for(size_t __counter = 0 ; __counter < __limit ; ++__counter) {\
+	__typeof( *ARRAY.ptr ) value = __ptr[__counter];	\
+	BODY \
+	}	 \
+} \
+
 
 #define cast(TYPE, VAR) (( TYPE )( VAR ))
 
@@ -57,30 +71,23 @@ View view_from( void* ptr, const size_t len )
 	return (View){ ptr, len };
 }
 
-size_t ptr_len( void* this )
-{
-	return  *cast(size_t*, this + sizeof(size_t));
-}
 
 void length_set( void* this, const int value )
 {
     *cast(size_t*, this + sizeof(size_t)) = value;
 }
 
-int ptr_cap( void* this )
-{
-	return  *cast(size_t*, this + sizeof(size_t) * 2);
-}
 
-void copy( void* dest, void* source, const size_t size )
-{
-	memcpy( dest, source, size );
-}
 
-void copy_slice( void* dest, void* source, const size_t size )
-{
-	memcpy( dest, source, ptr_len( source ) * size );
-}
+// void copy( void* dest, void* source, const size_t size )
+// {
+// 	memcpy( dest, source, size );
+// }
+
+// void copy_slice( void* dest, void* source, const size_t size )
+// {
+// 	memcpy( dest, source, ptr_len( source ) * size );
+// }
 
 #define class( STRUCT_NAME, STRUCT_BODY ) typedef struct STRUCT_NAME STRUCT_BODY STRUCT_NAME
 #define Enum( ENUM_NAME, ... ) typedef enum ENUM_NAME __VA_ARGS__ ENUM_NAME

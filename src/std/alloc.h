@@ -22,3 +22,7 @@ Slice alloc_slice( const size_t len, const size_t size )
 	return slice;
 }
 
+void release( void* ptr )
+{
+	free(ptr);
+}
